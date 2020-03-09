@@ -31,32 +31,98 @@
 
 /* Comment this out to disable prints and save space */
 #define BLYNK_PRINT Serial
+#define LED 2
+
+const int freq = 5000;
+const int ledChannel = 0;
+const int resolution = 10;
+
+
 
 
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <BlynkSimpleEsp32.h>
 
+BlynkTimer timer;
+int time_count = 0; // timer counter global variable
+String content = "";  // null string constant ( an empty string )
+
 // You should get Auth Token in the Blynk App.
 // Go to the Project Settings (nut icon).
-char auth[] = "Your token here";
+char auth[] = "4cU-BGwmlref_B_kQRrChLp0P-HS3V8Z";
 
 // Your WiFi credentials.
 // Set password to "" for open networks.
 // The EE IOT network is hidden. You might not be able to see it.
 // But you should be able to connect with these credentials. 
-char ssid[32] = "EE-IOT-Platform-02";
-char pass[32] = "g!TyA>hR2JTy";
+char ssid[32] = "Caroline's iPhone";
+char pass[32] = "03fk2rm8yavv";
 
 void setup()
 {
   // Serial Monitor
   Serial.begin(115200);
+  //pinMode(2, OUTPUT);
+  ledcSetup(ledChannel, freq, resolution);
+  ledcAttachPin(2, ledChannel);
   Blynk.begin(auth, ssid, pass);
+
+  timer.setInterval(10L, myTimerEvent);
+  
+  
 }
 
 void loop()
 {
   Blynk.run();
+  timer.run();
 }
 
+BLYNK_WRITE(V0)
+{
+  int pinValue = param.asInt();
+
+  if (pinValue == 0)
+  {
+      ledcWrite(ledChannel, 0);
+  }
+  else
+  {
+    ledcWrite(ledChannel, 255);
+  }
+  
+}
+BLYNK_READ(V2)
+{
+  Blynk.virtualWrite(V2, millis() / 1000);
+}
+BLYNK_WRITE(V1)
+{
+  int val = param.asInt();
+  ledcWrite(ledChannel, val); 
+}
+
+void myTimerEvent() // Every 10 ms
+{
+    //Blynk.virtualWrite(V2, millis() / 1000);
+    if (time_count == 100){
+        // Do thing that needs to happen every 1 second
+        time_count = 0;
+        Blynk.virtualWrite(V2, millis() / 1000); // Write the arduino uptime every second
+      }
+    
+    else {
+        // Send serial data to Blynk terminal
+        char character;
+        while(Serial.available()) { // Check if serial is available every 10 ms
+            character = Serial.read();
+            content.concat(character);
+        }
+        if (content != "") {
+            Blynk.virtualWrite(V3, content);
+            content = ""; // Clear String
+        }  
+    }
+    time_count += 1; // Increment on every tick
+}
